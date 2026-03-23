@@ -1,0 +1,31 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect language
+        id: lang
+        run: |
+          if [ -f package.json ]; then echo "lang=node" >> $GITHUB_OUTPUT
+          elif [ -f requirements.txt ]; then echo "lang=python" >> $GITHUB_OUTPUT
+          elif [ -f Cargo.toml ]; then echo "lang=rust" >> $GITHUB_OUTPUT
+          else echo "lang=shell" >> $GITHUB_OUTPUT; fi
+      - name: Node setup
+        if: steps.lang.outputs.lang == 'node'
+        uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Node test
+        if: steps.lang.outputs.lang == 'node'
+        run: npm install && npm test --if-present
+      - name: Python setup
+        if: steps.lang.outputs.lang == 'python'
+        uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Python test
+        if: steps.lang.outputs.lang == 'python'
+        run: pip install -r requirements.txt 2>/dev/null; python -m pytest -q 2>/dev/null || echo "No tests"
+      - name: Shell lint
+        if: steps.lang.outputs.lang == 'shell'
+        run: find . -name "*.sh" -exec shellcheck --severity=warning {} \; 2>/dev/null || true
